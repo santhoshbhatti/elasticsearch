@@ -291,7 +291,8 @@ curl -XPUT 127.0.0.1:9200/movies/movie/109487 -d '
 }'
 
 The successful reponse is :
-{"_index":"movies","_type":"movie","_id":"109487","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"created":true}
+{"_index":"movies","_type":"movie","_id":"109487","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},
+"created":true}
 
 How to retrive all the documents in the just created index :
 
@@ -631,7 +632,9 @@ Now theis above search query returns the document for Dark Knight as follows:
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
-{"took":19,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":{"total":1,"max_score":0.94566005,"hits":[{"_index":"movies","_type":"movie","_id":"58559","_score":0.94566005,"_source":{ "id": "58559", "title" : "Dark Knight, The", "year":2008 , "genre":["Action", "Crime", "Drama", "IMAX"] }}]}}
+{"took":19,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":
+{"total":1,"max_score":0.94566005,"hits":[{"_index":"movies","_type":"movie","_id":"58559","_score":0.94566005,"_source":
+{ "id": "58559", "title" : "Dark Knight, The", "year":2008 , "genre":["Action", "Crime", "Drama", "IMAX"] }}]}}
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
@@ -666,7 +669,8 @@ curl -XGET 127.0.01:9200/movies/_search?q=Dark
 we get no docs related to the above search query...the response is as below:
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-{"took":13,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":{"total":0,"max_score":null,"hits":[]}}
+{"took":13,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":
+{"total":0,"max_score":null,"hits":[]}}
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
@@ -736,7 +740,9 @@ Response is as below:
 
 {"_index":"movies","_type":"movie","_id":"109559","_version":2,"result":"updated","_shards":{"total":2,"successful":1,"failed":0}}
 
-Note the version has changed from 1 to 2 ------A new document is added (version 2) and the old document with version 1 has been marked for deleteion. deletion happens in later sweep.
+Note the version has changed from 1 to 2 ------
+A new document is added (version 2) and the old document with version 1 has been marked for deleteion.
+deletion happens in later sweep.
 
 Note the curl commnad above is Post request and the its a rest call where we pass the "index_name/type/doc_id/_update"
 Here the uri is as follows: /movies/movie/109559/_update 
@@ -1064,7 +1070,8 @@ curl -XPUT 127.0.0.1:9200/movies/movie/109487?version=3 -d '
 
 Response below:
 
-{"_index":"movies","_type":"movie","_id":"109487","_version":4,"result":"updated","_shards":{"total":2,"successful":1,"failed":0},"created":false}
+{"_index":"movies","_type":"movie","_id":"109487","_version":4,"result":"updated","_shards":
+{"total":2,"successful":1,"failed":0},"created":false}
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
@@ -1091,15 +1098,22 @@ Now if we try using version 3 to update same doc using same curl command above w
 
 ?????????????????????????????????????????????????
 
-{"error":{"root_cause":[{"type":"version_conflict_engine_exception","reason":"[movie][109487]: version conflict, current version [4] is different than the one provided [3]","index_uuid":"BoFfCbItTRGyjJSy4TO5KQ","shard":"1","index":"movies"}],"type":"version_conflict_engine_exception","reason":"[movie][109487]: version conflict, current version [4] is different than the one provided [3]","index_uuid":"BoFfCbItTRGyjJSy4TO5KQ","shard":"1","index":"movies"},"status":409}
+{"error":{"root_cause":[{"type":"version_conflict_engine_exception","reason":
+"[movie][109487]: version conflict, current version [4] is different than the one provided [3]",
+"index_uuid":"BoFfCbItTRGyjJSy4TO5KQ","shard":"1","index":"movies"}],"type":"version_conflict_engine_exception",
+"reason":"[movie][109487]: version conflict, current version [4] is different than the one provided [3]","index_uuid":
+"BoFfCbItTRGyjJSy4TO5KQ","shard":"1","index":"movies"},"status":409}
 
 ??????????????????????????????????????????????????
-This is how optimistic locking works and we can have a workaround for this problem if we wnat updates to go through even if we have conflicts we can run the following curl command with an extra parameter retry_on_conflicts=n where n is the number of retries:
+This is how optimistic locking works and we can have a workaround for this problem if we wnat updates to go 
+through even if we have conflicts we can run the following curl command with an extra parameter retry_on_conflicts=n 
+where n is the number of retries:
 
 Note the difference here we are using a _update rest service...which under the hood retrives the existing document (current version),
 Change it and submit a new document .....this is effectively doing the things we did before with version update above.
 
-Additionaly if the update fails due to version conflit...it does the whole thing of retriveing the current version of the doc, update it and submit a new document....version changes will be done when the doc gets saved by the elasticsearch.
+Additionaly if the update fails due to version conflit...it does the whole thing of retriveing the current version of the doc,
+update it and submit a new document....version changes will be done when the doc gets saved by the elasticsearch.
  
 
 curl -XPOST 127.0.0.1:9200/movies/movie/109559/_update?retry_on_conflict=5 -d '
