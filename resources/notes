@@ -1,0 +1,2037 @@
+The docs to install elastic search:
+
+ it details the installation of 
+1. Virtualbox
+2. Creating a ubuntu box
+3. installing the Elastic search
+4. starting elasticsearch as a service in the ubuntu machine
+5. testing the installation
+6. importing a sechema for indexing all shakespeare's works
+7. imporing the all shakespeare's works and indexing them
+8. Searching for a phrase such as to be or not to be
+
+
+--------------------------------------------------------------------------------------------------
+importing a sechema for indexing all shakespeare's works
+
+getting the schema downloaded from given url:
+
+wget http://media.sundog-soft.com/es/shakes-mapping.json
+
+
+imporing the schema to elasticseach instance:
+
+curl -XPUT 127.0.0.1:9200/shakespeare --data-binary @shakes-mapping.json
+
+########################################################################################################
+the mapping 
+
+{
+	"mappings" : {
+ 		"_default_" : {
+			"properties" : {
+				"speaker" : {"type": "string", "index" : "not_analyzed" },
+				"play_name" : {"type": "string", "index" : "not_analyzed" },
+				"line_id" : { "type" : "integer" },
+				"speech_number" : { "type" : "integer" }
+			}
+		}
+	}
+}
+
+########################################################################################################
+
+Document indexed:
+
+
+{
+   "line_id":14,
+   "play_name":"Henry IV",
+   "speech_number":1,
+   "line_number":"1.1.11",
+   "speaker":"KING HENRY IV",
+   "text_entry":"All of one nature, of one substance bred,"
+}
+
+
+
+
+
+
+
+
+########################################################################################################
+
+getting all shakespeare's work downloded from below url as follows:
+
+wget http://media.sundog-soft.com/es/shakespeare.json
+
+Indexing the works of shakespeare in the running instance of elasticsearch:
+
+curl -XPOST '127.0.0.1:9200/shakespeare/_bulk' --data-binary @shakespeare.json  
+
+
+Summary imporing a new schema in elastic search is a PUT request and indexing ie..imporing the
+documents to be indexed to elasticsearch is a PUT request  
+
+Searching the indexed data is as follows:
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+curl -XGET '127.0.0.1:9200/shakespeare/_search?pretty' -d '
+{
+"query" : {
+"match_phrase" : {
+"text_entry" : "to be or not to be"
+}
+}
+}
+'
+
+searching is a get request
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+------------------------------------------------------------------------------------------------------
+
+Indexing the movie dataset from movielens:
+
+This is a simple schema definition or mapping...here 
+the movie has many other fields TODO define all fields which are part of the documents......
+Elastic search figures out what to do with the fields by default...ie....how to index/analyze the fields
+But in certian cases we need to give it hints like below....we have disabled _all field....this field will hold
+ all fields if we want to search on any field
+But the mapping below 
+
+################################################################################
+Example mapping for the movie index 
+
+curl -XPUT 127.0.0.1:9200/movies -d '
+{
+	"mappings":{
+		"movie":{
+			"_all":{"enabled":false},
+			"properties":{
+				"year":{"type":"date"}
+			}
+		}
+	}
+}  
+'
+
+
+
+In the above example the index we are creating is the movies ---part of the url /movies
+and the type we are mapping here is movie inside "mappings" we have type mentioned as "movie"
+
+response : {"acknowledged":true,"shards_acknowledged":true,"index":"movies"}
+
+How to retrive the mapping from the elasticsearch:
+
+curl -XGET 127.0.0.1:9200/movies/_mapping/movie?pretty 
+
+?pretty will print formatted json as follws: response of above rest call:
+
+{
+  "movies" : {
+    "mappings" : {
+      "movie" : {
+        "_all" : {
+          "enabled" : false
+        },
+        "properties" : {
+          "year" : {
+            "type" : "date"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+################################################################################
+
+
+Mappings or schema definition :
+ Very important while indexing data , how do we difine a document having fields
+
+_all field is introduced by elastic search in all the docs which are indexed by default....this fild combines
+all the fields togeather...to give us the capability to search accross all fields at once.
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+Mappings can  define the following things 
+1. types ----string,byte,short,integer,long,float,double,boolean,date
+ex---- 
+here we can mention specifically what the fields type is 
+
+"property":{
+	"user_id":{"type":"long"}
+}
+
+2. Field index ----gives us ability to control how a field is indexed ----Analyled/not Analyzed/not indexed
+The question we ask here is do you want this field to be indexed for full text search? Analyled/not Analyzed/not 
+example: 
+"property" : {
+	"genre" : {
+		"index":"not_analyzed"
+	}
+}
+
+What do do we mean by analyzed? Details later---TODO get the details
+Analyzed means ....how field is tokenized for full text search.
+If we have enabled analyzed....elasticsearch indexing will break the field up into terms and create a inverted index of those terms.
+This is not required for all data as this kind of tokenization is not relevent for some fields.....like the above field genre
+if the genere is science fiction we need not tokenize this string to science and fiction. we would always search the genre as science fiction 
+and not as individual terms....hence not_analyzed.
+
+If we dont want to search the documents on a field such fields are annotated/mapped index as not.-----such fields will come back as part 
+of the documents which are retrived during a search ----search on a different field 
+
+3. field analyzer:
+
+define your tokenizer and token filter ---standard/simple/english etc
+
+eg :
+"property": {
+	"description":{
+		"analyzer" : "english"
+	}
+}
+
+Interpret the field value of description as english text....do english specific things like synonyms, stemming, language specific stopwords
+ and others.
+ More details shortly
+
+More about Analyzers : Important 
+
+three things analyzers can do:  These are things analyzers can do
+
+1. Caharacter filters
+	remove HTML encoding , convert & to and etc
+The idea is if we apply same analyzer to the data being indexed and search query we can get rid of such descrepancies. 
+ie if we seach for  & or and we get results
+
+2. Tokenizer 
+	Split strings on whitespace/punctuation/non-letters ...language specific tokenization
+        the choice of tokenizer will determine how a string gets broken up into search terms that get indexed.
+
+3. Token Filtereing:
+	lower casing/synonyms/stemming/stop words/
+If we apply same analyzer to both the data being indexed and the search query we can get rid of case sensitivity or
+ we can search using a synonym. 
+
+Stemming will reduce a term to its base meaning ie boxes, boxing, boxed will result to term box ----normalize different variants
+ of a given word to the same root stem.
+
+Synonyms filter if applied both in indexing and querying we can get results if the docs contain synonyms ...eg if we search
+for big we may get docs with large or huge in it
+
+Stopwords filter if applied will stop some common words which do not convey much meaning like "the, to, or" will not
+be indexed...dont enable stopwords lightly....usually in phrase searches if we had filtered stop words we may not get
+desired results...like in "to be or not to be" our last example if we had enabled stopword filtering
+we would not get any results on the phrase search as all words in the given phrase are stop words.
+
+Types of Analyzers:
+
+Standard :
+	Splits on word boundaries, removes punctuation, lowercases. good choice when the language is unknown.
+	we are using this analyzer for movie titles as we have some foreign language movies in the data set
+Simple : 
+	Splits on anything that isn't a letter and lowercases
+Whitespace:
+	splits on whitespace but doesn't lowecase ---punctuations are preserved...sometimes punctuations are important
+Language (i.e english or other languages):
+	accounts for language specific stopwords and stemming and synonyms. We can mix and match different languages in same index
+Some times we can make different analyzers to run on same text and store those in different fields....some tricks involved
+We can for example have a english version of the same text as well as a french version as different fields.
+
+
+
+
+___  ___                               _   _     _       _       _            
+|  \/  |                              | | | |   (_)     | |     | |           
+| .  . | ___  _ __ ___    ___  _ __   | |_| |__  _ ___  | | __ _| |_ ___ _ __ 
+| |\/| |/ _ \| '__/ _ \  / _ \| '_ \  | __| '_ \| / __| | |/ _` | __/ _ \ '__|
+| |  | | (_) | | |  __/ | (_) | | | | | |_| | | | \__ \ | | (_| | ||  __/ |   
+\_|  |_/\___/|_|  \___|  \___/|_| |_|  \__|_| |_|_|___/ |_|\__,_|\__\___|_|   
+                                                                              
+                                                                              
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+-------------------------------------------------------------------------------------------------------------------
+
+Inserting documents to an index:
+
+The mapping for the movies index is inserted to elasticsearch as below:
+
+In the below mapping ---movies is the name of the index and movie is the type
+
+curl -XPUT 127.0.0.1:9200/movies -d '
+{
+	"mappings":{
+		"movie":{
+			"_all":{"enabled":false},
+			"properties":{
+				"year":{"type":"date"}
+			}
+		}
+	}
+}  
+'
+
+Inserting the Document :
+
+Inserting  one single document 
+
+curl -XPUT 127.0.0.1:9200/movies/movie/109487 -d '
+{
+	"genre": ["IMAX","Sci-Fi"],
+	"title": "Interstellar",
+	"year": 2014 
+}'
+
+The successful reponse is :
+{"_index":"movies","_type":"movie","_id":"109487","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"created":true}
+
+How to retrive all the documents in the just created index :
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty
+
+Response :
+
+{
+  "took" : 83,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "109487",
+        "_score" : 1.0,
+        "_source" : {
+          "genre" : [
+            "IMAX",
+            "Sci-Fi"
+          ],
+          "title" : "Interstellar",
+          "year" : 2014
+        }
+      }
+    ]
+  }
+}
+
+Inserting documents in bulk:
+
+the multiple movie docs are in a file named : movies.json----the file contents are as below:
+
+############################################################################
+
+{ "create" : { "_index" : "movies", "_type" : "movie", "_id" : "135569" } }
+{ "id": "135569", "title" : "Star Trek Beyond", "year":2016 , "genre":["Action", "Adventure", "Sci-Fi"] }
+{ "create" : { "_index" : "movies", "_type" : "movie", "_id" : "122886" } }
+{ "id": "122886", "title" : "Star Wars: Episode VII - The Force Awakens", "year":2015 , "genre":["Action", "Adventure", "Fantasy", "Sci-Fi", "IMAX"] }
+{ "create" : { "_index" : "movies", "_type" : "movie", "_id" : "109487" } }
+{ "id": "109487", "title" : "Interstellar", "year":2014 , "genre":["Sci-Fi", "IMAX"] }
+{ "create" : { "_index" : "movies", "_type" : "movie", "_id" : "58559" } }
+{ "id": "58559", "title" : "Dark Knight, The", "year":2008 , "genre":["Action", "Crime", "Drama", "IMAX"] }
+{ "create" : { "_index" : "movies", "_type" : "movie", "_id" : "1924" } }
+{ "id": "1924", "title" : "Plan 9 from Outer Space", "year":1959 , "genre":["Horror", "Sci-Fi"] }
+
+############################################################################
+
+The file contents are a little strange we have a pair of json objects for a document being indexed: 
+
+{ "create" : { "_index" : "movies", "_type" : "movie", "_id" : "135569" } }
+{ "id": "135569", "title" : "Star Trek Beyond", "year":2016 , "genre":["Action", "Adventure", "Sci-Fi"] }
+
+The first JSON object has the name of the index, type and id of the document being indexed 
+Using this information we can get a hashvalue which tells which shard the document  can be indexed to.
+
+The second line contains the actual document to be indexed....so the elastic search will send the document to appropriate shard 
+based on the hash value.
+
+Inserting the above movies all at once:
+
+curl -XPUT 127.0.0.1:9200/_bulk?pretty --data-binary @movies.json
+
+Response below:
+
+#####################################################################################
+
+
+{
+  "took" : 389,
+  "errors" : true,
+  "items" : [
+    {
+      "create" : {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },
+    {
+      "create" : {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },
+    {
+      "create" : {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "109487",
+        "status" : 409,
+        "error" : {
+          "type" : "version_conflict_engine_exception",
+          "reason" : "[movie][109487]: version conflict, document already exists (current version [1])",
+          "index_uuid" : "BoFfCbItTRGyjJSy4TO5KQ",
+          "shard" : "1",
+          "index" : "movies"
+        }
+      }
+    },
+    {
+      "create" : {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "58559",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },
+    {
+      "create" : {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "1924",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    }
+  ]
+}
+
+
+#####################################################################################
+
+As we can see from the above response we ere able to import movies from the movies.json
+
+In the reponse we can see that 4 movies were imported/indexed successfully and the below document failed to be indexed
+
+{ "id": "109487", "title" : "Interstellar", "year":2014 , "genre":["Sci-Fi", "IMAX"] }
+
+The response that came for this document is below:
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+{
+      "create" : {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "109487",
+        "status" : 409,
+        "error" : {
+          "type" : "version_conflict_engine_exception",
+          "reason" : "[movie][109487]: version conflict, document already exists (current version [1])",
+          "index_uuid" : "BoFfCbItTRGyjJSy4TO5KQ",
+          "shard" : "1",
+          "index" : "movies"
+        }
+      }
+    }
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+As we know we had the document for the movie "Interstellar" was already imported and hence the conflict and failure.
+
+now to get all  indexed docs
+
+curl -XGET 127.0.0.1:9200/movies/_search?pretty
+
+
+
+Updateing documents:
+
+all documents in elastic search are immutable......so how to update the documents in elasticsearch
+but there is a workaround for this:
+
+Every doument which is indexed in elasticsearch will have a _version field in it
+Now we can make a copy of the document which we want to update and make changes to any field in it
+and increment the version field ----note that the unique id asscociated with the document and the version field 
+combined togeather are unique.....this means an elasticsearch index can contain different versions of same document and
+only the latest version of the document is picked up by search and all others are marked for delete and 
+not considered for searching.
+
+Retriveing an existing document using its id:
+
+curl -XGET 127.0.0.1:9200/movies/movie/109487?pretty
+
+response:
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+{
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109487",
+  "_version" : 1,
+  "found" : true,
+  "_source" : {
+    "genre" : [
+      "IMAX",
+      "Sci-Fi"
+    ],
+    "title" : "Interstellar",
+    "year" : 2014
+  }
+}
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+As we can see from the response the _version is 1 ...ie we have the first version of the document.
+
+Now updateing the document by changeing some field in it ....we can do it as follows:
+
+curl -XPOST 127.0.0.1:9200/movies/movie/109487/_update -d '
+{
+	"doc": {
+			"title":"Interstellar woo"
+	}
+}'
+ 
+the response is as below:
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+{"_index":"movies","_type":"movie","_id":"109487","_version":2,"result":"updated","_shards":{"total":2,"successful":1,"failed":0}}
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+As seen from the response the version field is updated to 2   :   "_version":2
+
+Now retriveing the document by using above curl command will get the new document version 2 .....as said before 
+the old document with version 1 will not be considered for search
+
+curl -XGET 127.0.0.1:9200/movies/movie/109487?pretty
+
+Response:
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+{
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109487",
+  "_version" : 2,
+  "found" : true,
+  "_source" : {
+    "genre" : [
+      "IMAX",
+      "Sci-Fi"
+    ],
+    "title" : "Interstellar woo",
+    "year" : 2014
+  }
+}
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+now inserting the same document with same ID as follows:
+
+curl -XPUT 127.0.0.1:9200/movies/movie/109487?pretty -d '
+{
+	"genres":["IMAX","Sci-Fi"],
+	"title":"Interstellar",
+	"year": 2014
+}'
+
+
+The reponse is as follows:
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+{
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109487",
+  "_version" : 3,
+  "result" : "updated",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "created" : false
+}
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Now you can see eventhough we tried insering the new document with same id 
+the elasticsearch updated the existing document ad incremented its _version field to 3....the previous version was 2.
+And also we can see that the created field is false : "created" : false ....as it updated the existing doc and not create it.
+
+So this is how updates work....now the previous versions of the document s still exist and they will be cleaned up when 
+cleanup tasks of the elasticsearch will run. 
+
+
+Deleteing documents
+
+curl -XDELETE 127.0.0.1:9200/movies/movie/58559
+
+now while deleteing we need to get the ID of the doc we want to delete----in the above delete command 58559 is the doc being delete
+
+Now first search for a movie that needs to be deleted----One liner search query for a Movie with Dark in its title:
+
+curl -XGET 127.0.0.1:9200/movies/_search?q=Dark
+
+Now theis above search query returns the document for Dark Knight as follows:
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+{"took":19,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":{"total":1,"max_score":0.94566005,"hits":[{"_index":"movies","_type":"movie","_id":"58559","_score":0.94566005,"_source":{ "id": "58559", "title" : "Dark Knight, The", "year":2008 , "genre":["Action", "Crime", "Drama", "IMAX"] }}]}}
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+Using the id we can compose the delete query as below:
+
+curl -XDELETE 127.0.0.1:9200/movies/movie/58559?pretty 
+
+which returns the following response:
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+{
+  "found" : true,
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "58559",
+  "_version" : 2,
+  "result" : "deleted",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  }
+}
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+Now if we run the same search As below:
+
+curl -XGET 127.0.01:9200/movies/_search?q=Dark
+
+we get no docs related to the above search query...the response is as below:
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+{"took":13,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":{"total":0,"max_score":null,"hits":[]}}
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+As we can see from above the hits array is empty.
+
+Now the above delete command when run the elasticsearch marks the matching document for deletetion and the actual deletion happens 
+in a saperate sweep through the index in a later phase. this is how deletion works...
+
+in first phase -----documents are marked for delete
+in sechonfd phase ----another process sweeps through the indexes and deletes all documents marked for delete
+
+----------------------------------------------------------------------------------------------------------------------
+
+excercise:
+
+Insert, update, search and delete and make sure its gone
+
+So inserting a single movie
+
+curl -XPUT 127.0.0.1:9200/movies/movie/109559 -d '
+{
+	"genre":["Sci-Fi","Drama","Thirller"],
+	"title": "Bicentanial Man"
+	"year": 2004
+}' 
+
+Searching all documents 
+
+curl -XGET 127.0.0.1:9200/movies/_search?pretty
+
+the above returns all the documents
+
+if we want to get a single doc using its id we do the following:
+If we see here this is not a search ....this is like  rest call to get a resource whose id is a path param
+curl -XGET 127.0.0.1:9200/movies/movie/109559?pretty
+Respons e below:
+
+{
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109559",
+  "_version" : 1,
+  "found" : true,
+  "_source" : {
+    "genre" : [
+      "Sci-Fi",
+      "Drama",
+      "Thirller"
+    ],
+    "title" : "Bicentanial Man",
+    "year" : 2004
+  }
+}
+
+here if we see we get the _version as 1 ----its just created
+
+Now update the the document : here i have changed the title from "Bicentanial" to "Bicentennial"
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+curl -XPOST 127.0.0.1:9200/movies/movie/109559/_update -d '
+{"doc" : {
+        "title":"Bicentennial Man"
+}}'
+
+
+Response is as below:
+
+{"_index":"movies","_type":"movie","_id":"109559","_version":2,"result":"updated","_shards":{"total":2,"successful":1,"failed":0}}
+
+Note the version has changed from 1 to 2 ------A new document is added (version 2) and the old document with version 1 has been marked for deleteion. deletion happens in later sweep.
+
+Note the curl commnad above is Post request and the its a rest call where we pass the "index_name/type/doc_id/_update"
+Here the uri is as follows: /movies/movie/109559/_update 
+
+and the doc we are sending in the request body is as follows:
+{"doc" : {
+        "title":"Bicentennial Man"
+}}
+
+
+The mapping for the movies index can be got as follows:
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+curl -XGET 127.0.0.1:9200/movies/_mapping/movie?pretty 
+{
+  "movies" : {
+    "mappings" : {
+      "movie" : {
+        "_all" : {
+          "enabled" : false
+        },
+        "properties" : {
+          "genre" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "genres" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "id" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "title" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "year" : {
+            "type" : "date"
+          }
+        }
+      }
+    }
+  }
+}
+
+This is different from above when we got the mapping for the first time ......Strange-----find whats happening
+Probabnly after the movie docs were indexed the mapping changed.....
+note here when we created the index the mapping we created was as below....:
+
+_____________________________________
+
+
+{
+	"mappings":{
+		"movie":{
+			"_all":{"enabled":false},
+			"properties":{
+				"year":{"type":"date"}
+			}
+		}
+	}
+}  
+
+____________________________________
+
+We created mappings for only the _all field and also the year field.....so After indexing default mappings were created for the
+title and genre fields....and also note sinde genre is an array...the individual ellements are mapped as genre....which is 
+awesom
+
+But after indexing docs 
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+Now Searching the document: json_pp is a linux command for formatting json
+127.0.0.1:9200/movies/_search?q=Man|json_pp
+
+Now i am searching the index with "Man" as query string:
+
+response as below: this returns one document with title matching Man ----Bicentennial Man
+In hits json elemet total element gives num docs returned
+
+-------------------------------------------
+{
+   "_shards" : {
+      "skipped" : 0,
+      "total" : 5,
+      "successful" : 5,
+      "failed" : 0
+   },
+   "took" : 15,
+   "timed_out" : false,
+   "hits" : {
+      "hits" : [
+         {
+            "_index" : "movies",
+            "_type" : "movie",
+            "_source" : {
+               "year" : 2004,
+               "genre" : [
+                  "Sci-Fi",
+                  "Drama",
+                  "Thirller"
+               ],
+               "title" : "Bicentennial Man"
+            },
+            "_id" : "109559",
+            "_score" : 0.7787034
+         }
+      ],
+      "total" : 1,
+      "max_score" : 0.7787034
+   }
+}
+
+-------------------------------------------
+Now searching on genres which was indexed as an array :
+
+curl -XGET 127.0.0.1:9200/movies/_search?q=Sci-Fi|json_pp
+
+response below: returned 5 results or docs
+
+--------------------------------------------
+
+{
+   "took" : 76,
+   "hits" : {
+      "total" : 5,
+      "max_score" : 1.1821114,
+      "hits" : [
+         {
+            "_index" : "movies",
+            "_source" : {
+               "genre" : [
+                  "Action",
+                  "Adventure",
+                  "Fantasy",
+                  "Sci-Fi",
+                  "IMAX"
+               ],
+               "title" : "Star Wars: Episode VII - The Force Awakens",
+               "id" : "122886",
+               "year" : 2015
+            },
+            "_score" : 1.1821114,
+            "_type" : "movie",
+            "_id" : "122886"
+         },
+         {
+            "_index" : "movies",
+            "_score" : 0.5753642,
+            "_source" : {
+               "year" : 2016,
+               "id" : "135569",
+               "genre" : [
+                  "Action",
+                  "Adventure",
+                  "Sci-Fi"
+               ],
+               "title" : "Star Trek Beyond"
+            },
+            "_type" : "movie",
+            "_id" : "135569"
+         },
+         {
+            "_score" : 0.5063205,
+            "_source" : {
+               "year" : 2014,
+               "title" : "Interstellar",
+               "genres" : [
+                  "IMAX",
+                  "Sci-Fi"
+               ]
+            },
+            "_index" : "movies",
+            "_id" : "109487",
+            "_type" : "movie"
+         },
+         {
+            "_type" : "movie",
+            "_id" : "1924",
+            "_index" : "movies",
+            "_source" : {
+               "genre" : [
+                  "Horror",
+                  "Sci-Fi"
+               ],
+               "title" : "Plan 9 from Outer Space",
+               "id" : "1924",
+               "year" : 1959
+            },
+            "_score" : 0.34450945
+         },
+         {
+            "_id" : "109559",
+            "_type" : "movie",
+            "_source" : {
+               "genre" : [
+                  "Sci-Fi",
+                  "Drama",
+                  "Thirller"
+               ],
+               "title" : "Bicentennial Man",
+               "year" : 2004
+            },
+            "_score" : 0.34450945,
+            "_index" : "movies"
+         }
+      ]
+   },
+   "timed_out" : false,
+   "_shards" : {
+      "successful" : 5,
+      "failed" : 0,
+      "skipped" : 0,
+      "total" : 5
+   }
+}
+
+--------------------------------------------
+
+
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+Now deleteing
+
+curl -XDELETE 127.0.0.1:9200/movies/movie/109559?pretty
+response:
+{
+  "found" : true,
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109559",
+  "_version" : 3,
+  "result" : "deleted",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  }
+}
+
+now tryng to find the doc using the rest service as below:
+
+curl -XGET 127.0.0.1:9200/movies/movie/109559
+{"_index":"movies","_type":"movie","_id":"109559","found":false}
+
+So now the document is marked for deletion and deleteion will itself happen in another sweep through the index.
+
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+
+Concurrency in Elastic search:
+
+Optimistic locks using version fields of document----same as optimistic locking in hibernate
+
+And use of retry_on_conflict request parm while updateing the document.....the elstic search will get the document and 
+update the field value and try submitting the document ....but if the version is different it fails....the presence of this parameter in the
+update request will start a retry loop...which will do retry update the number of times specified as the value of this param
+
+TODO More on this later
+
+The version update is as follows:
+
+So assume that we got the document with version 3 as follows:
+
+curl -XGET 127.0.0.1:9200/movies/movie/109487?pretty
+{
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109487",
+  "_version" : 3,
+  "found" : true,
+  "_source" : {
+    "genres" : [
+      "IMAX",
+      "Sci-Fi"
+    ],
+    "title" : "Interstellar",
+    "year" : 2014
+  }
+}
+
+Now we can see we have version 3 of the doc
+
+Now updateing the same using the version is as follows:
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+curl -XPUT 127.0.0.1:9200/movies/movie/109487?version=3 -d '
+{
+   "genres" : [
+      "IMAX",
+      "Sci-Fi"
+    ],
+    "title" : "Interstellar Foo",
+    "year" : 2014
+
+}'
+
+Response below:
+
+{"_index":"movies","_type":"movie","_id":"109487","_version":4,"result":"updated","_shards":{"total":2,"successful":1,"failed":0},"created":false}
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+Now this will change the version to 4 as seen from above response:
+
+curl -XGET 127.0.0.1:9200/movies/movie/109487?pretty
+{
+  "_index" : "movies",
+  "_type" : "movie",
+  "_id" : "109487",
+  "_version" : 4,
+  "found" : true,
+  "_source" : {
+    "genres" : [
+      "IMAX",
+      "Sci-Fi"
+    ],
+    "title" : "Interstellar Foo",
+    "year" : 2014
+  }
+}
+
+Now if we try using version 3 to update same doc using same curl command above we will get exception as below:
+
+?????????????????????????????????????????????????
+
+{"error":{"root_cause":[{"type":"version_conflict_engine_exception","reason":"[movie][109487]: version conflict, current version [4] is different than the one provided [3]","index_uuid":"BoFfCbItTRGyjJSy4TO5KQ","shard":"1","index":"movies"}],"type":"version_conflict_engine_exception","reason":"[movie][109487]: version conflict, current version [4] is different than the one provided [3]","index_uuid":"BoFfCbItTRGyjJSy4TO5KQ","shard":"1","index":"movies"},"status":409}
+
+??????????????????????????????????????????????????
+This is how optimistic locking works and we can have a workaround for this problem if we wnat updates to go through even if we have conflicts we can run the following curl command with an extra parameter retry_on_conflicts=n where n is the number of retries:
+
+Note the difference here we are using a _update rest service...which under the hood retrives the existing document (current version),
+Change it and submit a new document .....this is effectively doing the things we did before with version update above.
+
+Additionaly if the update fails due to version conflit...it does the whole thing of retriveing the current version of the doc, update it and submit a new document....version changes will be done when the doc gets saved by the elasticsearch.
+ 
+
+curl -XPOST 127.0.0.1:9200/movies/movie/109559/_update?retry_on_conflict=5 -d '
+{"doc" : {
+        "title":"Bicentennial Man"
+}}'
+
+And also note this is POST request not the put request as we have done before with version param
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------------
+
+Using analysers and tokenizers -- Controlling full text search:
+
+We have seen in brief how Analyzers control full text search in our docs. now more details:
+#################################
+If we need the text fields to matched exactly -----dont use analyzer use "no_analyzer" mapping when we are mapping the field
+#################################
+By default fields have a default analyzer which will break things up into individual search terms ----and if we do a 
+search with any of the search terms ....docs with these terms will be returned as part of search result...we can sort the results
+by relevance but the results may not be what the user wants.
+
+Search on analyzed fields will return anything remotely relevant:
+	1. Depending upon the analyzer chosen, results will be case insensitive, stemmed, stop words removed, synonyms applied etc
+	2. searches with multiple terms may not match them all....the search results may have matched only a part of the phrase
+
+we can sort the results by relevance but the results might be unexpected
+
+Now lets see how full text works and how we can modify the mappings to get the results that we really want....
+Note that the mappings should reflect the results that we expect from the full text search. ----we need to think about our 
+query patterns upfront. 
+
+Now for some examples:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query":{
+		"match":{
+			"title":"Star Trek"
+		}
+	}
+}'
+
+Response is as below:
+
+#####################################################
+
+{
+  "took" : 19,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 0.70853925,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 0.70853925,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.5063205,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+#####################################################
+
+This above response cleary needs explaination as we can See we searched for the phrase "Star Trek" but in reponse
+we get "Star Wars" having a higher relevance score than the Exact match ie.."Star Trek Beyond". this is sort of strange.
+Why did elasticsearch associated "Star Wars" higher relevance than the "Star Trek"---the phrase we searched for
+
+This is an anomly and can be explianed as follows: 
+This can happen when have too many shards and not enough documents things dont work as expected.
+
+The problem is that Inverse docuement frequency is only computed per shard
+Now the problem is Star Trek and Star wars are on different shards and they both have inverse document frequency scores for the 
+term star which ended up giving higher boost in one shard----they would have been equal if they were on a single shard.
+
+This issue wont happen if we have a large corpus of documents indexed into elastic search.------no worries just a anomaly.
+
+If the the documents are very less its better to have them all in asingle shard.
+
+
+Aprt from the above anomly we have one more thing to explain ie...even though we searched for "Star Terk" we got docs containing "Star Wars"
+---We can say we got all docs containing Star in them....This is how analyzers work ---they try to give us anything that remotely 
+matches our search ----it gives docs in relevance order and some times the elastic search gets it right and some other times as in
+our case it may go worong as well. 
+
+If we are ok with this kind of behaviour then its fine ....if not we need to think about how we structure our queries and
+how we analyse data that we want to index.
+
+Now another example is ---Pharse search ----
+
+Example is searching for the Phrase "Sci" ----this is a phrase search....lets see what happens:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query":{
+		"match_phrase":{
+				"genre": "Sci"
+		}
+	}
+}'
+
+Response Below:
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+{
+  "took" : 6,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 3,
+    "max_score" : 0.5910557,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 0.5910557,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.2876821,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "1924",
+        "_score" : 0.25316024,
+        "_source" : {
+          "id" : "1924",
+          "title" : "Plan 9 from Outer Space",
+          "year" : 1959,
+          "genre" : [
+            "Horror",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+Again this Search result needs lot of explaination: Here we queried for the Phrase "Sci" 
+but we got all documents having genre "Sci-Fi" how did this happen??????
+
+This is because we have default analyser for the genre field.
+The default has split the genre into individual terms and indexed them.
+So for example here Sci-Fi has been split into phrases "Sci" and "Fi"
+
+So as stated before ...if we want exact match we need to disable analyzers on such fields as below:
+
+Now we cant modify an index we will delete the entire index and create a new one with modified mapping:
+
+Deleteing the entire index:
+
+curl -XDELETE 127.0.0.1:9200/movies
+
+Response below:
+{"acknowledged":true}
+
+Now the new mapping as below:
+
+curl -XPUT 127.0.0.1:9200/movies -d'
+{
+	"mappings": {
+		"movie": {
+			"_all": {"enabled": false},
+			"properties": {
+				"id": {"type": "integer"},
+				"year": {"type":"date"},
+				"genre": {"type":"string","index":"not_analyzed"},
+				"title": {"type": "string", "analyzer":"english"}
+			}		
+		}
+	}
+}'	
+
+Response below:
+
+{"acknowledged":true,"shards_acknowledged":true,"index":"movies"}
+
+Now observe the mapping here for genre its mapped as  "genre": {"type":"string","index":"not_analyzed"}
+and title is as follows: "title": {"type": "string", "analyzer":"english"}
+
+Here genre is indexed but not analyzed ie...not broken into terms ---indexed as it is
+and title is analyzed...accounts for language specific stopwords and stemming and synonyms
+Even though some titles have foreign language this is chosen....lets see what happens 
+
+
+Now the below search query:
+
+############################################################
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query":{
+		"match_phrase":{
+				"genre": "Sci"
+		}
+	}
+}'
+ 
+this returns no results at all:
+
+Response below:
+
+{
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 0,
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+
+reason being the genere is mapped as not_analyzed....its not broken down into terms ie..sci and fi
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query":{
+		"match":{
+				"genre": "Sci"
+		}
+	}
+}'
+
+Neither the above works....since this field is not analyzed even if we do not provice proper casing it does not work
+This is the typical behaviour of a non analyzed field
+
+Below works and gets the result:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query":{
+		"match":{
+				"genre": "Sci-Fi"
+		}
+	}
+}'
+############################################################
+
+Now lets search for a nalyzed field like title:
+
+Below is the query and the result:
+
+###########################################################
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+"query":{
+"match":{
+"title":"star trek"
+}
+}
+}'
+{
+  "took" : 9,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 0.6284925,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 0.6284925,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.5063205,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+Here we can see for an analyzed field the results indicate that anything that remotely matches the search will be returned
+###########################################################
+
+TF - IDF (term frequency inverse document frequency):
+
+By default, the algorithm used to calculate a document’s relevancy score is TF-IDF .
+TF-IDF stands for term frequency–inverse docu-
+ment frequency, which are the two factors that influence relevancy score.
+
+1.Term frequency—The more times the words you’re looking for appear in a docu-
+ment, the higher the score.
+
+2.Inverse document frequency—The weight of each word is higher if the word is
+uncommon across other documents.
+
+For example, if you’re looking for “bicycle race” on a cyclist’s blog, the word “bicycle”
+counts much less for the score than “race.” But the more times both words appear in a
+document, the higher that document’s score.
+
+#######################################################################################
+
+
+Datamodelling in elasticsearch
+
+----Denormalize the data ----which is true for Cassandra, mongodb and other nosql stores. Relationsal db's store data in a normalized way.
+
+Elastic search provides facilities for normalizing as well and also can represent parent child relationships.
+In case of normailizing the data we might need to do 2 different queries for getting the complete data.
+As an example:
+
+We can lookup for a rating -----which has Type: Rating:{userid,movieid, rating}
+
+But in a seperate query we have to get the movie title from the type movie:{movieid,title,genre}
+
+the data thatis normalized is not redundent and its easy to change....but it needs two queries to fetch it.
+So if we normalize we would be doubling the search trafic. And since in most of the websites search performace is what matters
+and the storage is cheap so we need worry about the storge costs as much we worry about a performant website.
+
+Now the denormalized data for the ratings type may look like follows:
+
+Type Rateing:{userid,movieid,title,rateing} so this would help us lookuo the movie ratings in a single query
+Only issue is that since the movie name is repeated accross multiple ratings docs now....if the movie name changes then we
+have to update all rating docs for that movie.....may not happen as movie titles seldom change. Storage is not an issue.
+
+Manageing the parent child relationship in elastic search:
+
+Lets say we want to represent the relationship between the movie franchises and movies that makeup the the franchise
+
+like Star wars and the star wars franchises {A new hope, Empire strikes back, Return of the jedi, the force awakens}
+
+So the next mapping sets up such a parent child relation between the movie and the its parent ie..franchise
+
+curl -XPUT 127.0.0.1:9200/series -d'
+ {
+ "mappings": {
+       "franchise": {},
+       "film": {
+               "_parent": {
+                       "type": "franchise"
+               }
+       }
+ }
+ }'
+
+downoad series data :
+wget http://media.sundog-soft.com/es/shakespeare.json
+
+import the data : index into elastic search:
+
+curl -XPUT 127.0.0.1:9200/_bulk?pretty --data-binary @series.json
+
+###########################################################
+
+{
+  "took" : 378,
+  "errors" : false,
+  "items" : [
+    {
+      "create" : {
+        "_index" : "series",
+        "_type" : "franchise",
+        "_id" : "1",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },
+    {
+      "create" : {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "260",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },	
+
+..........
+Now if we see the above fragment of response we can see we imported the franchise type first and then the 
+series.
+###########################################################
+
+Now query to get all movies in "Star Wars" franchise
+
+-----------------------------------------------------------------------------
+curl -XGET 127.0.0.1:9200/series/film/_search?pretty -d'
+> {
+> "query": {
+>       "has_parent": {
+>               "type": "franchise",
+>               "query" : {
+>                       "match": {
+>                               "title": "Star Wars"
+>                       }
+>               }
+>       }
+> }
+> }'
+
+response below:
+
+{
+  "took" : 201,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 7,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "260",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "260",
+          "title" : "Star Wars: Episode IV - A New Hope",
+          "year" : "1977",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "1196",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "1196",
+          "title" : "Star Wars: Episode V - The Empire Strikes Back",
+          "year" : "1980",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "1210",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "1210",
+          "title" : "Star Wars: Episode VI - Return of the Jedi",
+          "year" : "1983",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "2628",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "2628",
+          "title" : "Star Wars: Episode I - The Phantom Menace",
+          "year" : "1999",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "5378",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "5378",
+          "title" : "Star Wars: Episode II - Attack of the Clones",
+          "year" : "2002",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "33493",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "33493",
+          "title" : "Star Wars: Episode III - Revenge of the Sith",
+          "year" : "2005",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "series",
+        "_type" : "film",
+        "_id" : "122886",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : "2015",
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+--------------------------------------------------------------------------------------------
+
+now getting the franchise given one of its constituent film:
+
+curl -XGET 127.0.0.1:9200/series/franchise/_search?pretty -d'
+{
+	"query":{
+		"has_child":{
+			"type": "film",
+			"query":{
+				"match":{
+					"title" : "The Force Awakens"
+				}
+			}
+		}
+	}
+}'
+
+response below:
+
+{
+  "took" : 13,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "series",
+        "_type" : "franchise",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "1",
+          "title" : "Star Wars"
+        }
+      }
+    ]
+  }
+}
+--------------------------------------------------------------------------------------
+
+################################################################################
+Querying with Elastic search---------------This is really important
+
+Query Lite ---this is the shortcut for querying in elasticsearch
+
+No request body 
+
+queries are of the form:
+
+/movies/movie/_search?q=title:Dark
+
+This below query will not work as it is ...the request parameters "q=+year:>2010+title:trek" need url encodeing
+So the readability of such queries will loose radability.
+
+/movies/movie/_search?q=+year:>2010+title:trek
+
+The shorthand technique is dangerous and not be used in prod because of following reasons:
+
+1. The short-hand queries can get pretty cryptic and will be difficult to debug.
+2. Can be security issue if exposed to end users....end users can issue a intensive query that can bring down the cluster.
+3. fragile....one wrong character and the qury will fail.
+
+Handy for quick experimentation.
+
+The query-lite is formally known as URI search
+to know more go to
+
+https://www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
+
+TODO go through the stuff in the above URL
+
+Now for some examples:
+
+Searching for docs with title containing star in them:
+
+-----------------------------------------------------------------------------
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?q=title:star&pretty"
+
+response below:
+
+{
+  "took" : 8,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 0.6284925,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 0.6284925,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.25316024,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+-----------------------------------------------------------------------------
+
+the next example shows how the URI search can return really cryptic results and makes it really difficult to debug:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?q=+year:>2010+title:trek&pretty"
+--------------------------------------------------------------
+
+
+{
+  "took" : 39,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 3,
+    "max_score" : 1.2531602,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 1.2531602,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "109487",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "109487",
+          "title" : "Interstellar",
+          "year" : 2014,
+          "genre" : [
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+As we can see from response we did not get what we expected ....we expected any movie whose title has "trek"
+and also the year must be grater than 2010.
+
+But the result returned wrong rows ....this is because the query parameters needed url encodeing as it contins special characters like +.
+This is the reason why we should not use the URL queries as it can get really confusing for complex queries.
+
+if we url encode the above query params we can get the results as expected
+
+The URL encoded query string ias as below:
+
+curl  -XGET "127.0.0.1:9200/movies/movie/_search?q=%2Byear%3A%3E2010+%2Btitle%3Atrek&pretty"
+
+As we can see the quey becomes a pain in the ass
+
+--------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+################################################################################
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+

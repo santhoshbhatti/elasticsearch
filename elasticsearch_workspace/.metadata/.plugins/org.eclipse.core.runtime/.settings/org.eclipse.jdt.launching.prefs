@@ -1,0 +1,2 @@
+eclipse.preferences.version=1
+org.eclipse.jdt.launching.PREF_VM_XML=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?>\n<vmSettings defaultVM\="57,org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType13,1512121770525">\n<vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType">\n<vm id\="1512121770525" javadocURL\="https\://docs.oracle.com/javase/8/docs/api/" name\="8u121" path\="/home/santoshb/.sdkman/candidates/java/8u121"/>\n</vmType>\n</vmSettings>\n
