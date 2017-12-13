@@ -1,3 +1,10 @@
+####################################################
+URLS:
+
+https://www.elastic.co/guide/en/elasticsearch/guide/current/index.html
+####################################################
+
+
 The docs to install elastic search:
 
  it details the installation of 
@@ -2001,19 +2008,691 @@ This is the reason why we should not use the URL queries as it can get really co
 
 if we url encode the above query params we can get the results as expected
 
-The URL encoded query string ias as below:
+The actual search query and URL encoded query string is as as below:
+curl -XGET "127.0.0.1:9200/movies/movie/_search?q=+year:>2010+title:trek&pretty"
 
 curl  -XGET "127.0.0.1:9200/movies/movie/_search?q=%2Byear%3A%3E2010+%2Btitle%3Atrek&pretty"
 
 As we can see the quey becomes a pain in the ass
 
+in the below i have tried to url encode the query stiong but it does  -----url encodeing in git
+
+curl -G -v -XGET "127.0.0.1:9200/movies/movie/_search" --data-urlencode "q=+year:>2010+title:trek&pretty"
+
 --------------------------------------------------------------
 
 
+Request body search:
+
+More structured definition for the search query ---its a JSON DSL
 
 
 
+Thr URI search query : curl -XGET "127.0.0.1:9200/movies/movie/_search?q=title:star&pretty"
 
+equivallent to the above query in request body search is as follows:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"match":{
+			"title":"star"
+		}
+	}
+}'
+
+One more strange thing we note here is that the GET request having a body:
+GET requests can have bodies........amazing!!!!!!
+
+Request body queries can have 2 different things in them
+
+1. Filters : Ask yes/no question of our data
+
+
+2. Queries : return data in terms of relevance 
+Queries are used for example when we search for query for a search term "trek" the query will find out the relevance of the term "trek"
+to that document and order in terms of its relevance.
+
+However if we have a binary yes/no we need a filter...use filters when you can they are faster and cacheable
+
+Example of boolean query with filter----equvallent to the URI search: 
+curl -XGET "127.0.0.1:9200/movies/movie/_search?q=+year:>2010+title:trek&pretty"
+
+Below the request body query:
+
+This query , queries for term trek in all docs which have year field greater than 2010-----query
+
+must is the query and filter is filtering ie...(boolean operation on the year field)-----filter 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Queries are nested in query block and filters are nested in filter block
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+################################################################################
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"bool": {
+			"must":{"term": {"title": "trek"}},
+			"filter": {"range": {"year":{"gte":2010}}}
+		}
+	}
+}		
+
+Response is as below:
+
+{
+  "took" : 14,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.25316024,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.25316024,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+################################################################################
+
+Some of the types of filters:
+
+term: filter by exact values {"term": {"year":2014}}
+
+terms: match if any exact value in a list match  {terms:{"genre":["Sci-Fi","Drama"]}}
+
+range: Find numbers or dates in a given range (lt,gt,gte,lte) {"range":{"year":{"gte":2010}}}
+
+exists: Find documents where field exists {"exists": {"field":"tags"}}
+
+missing: Find documents where field is missing {"missing": {"field":"tags"}}
+
+bool: Combine filters with boolean logic (must, must_not, should)
+
+Example of bool: 
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+"bool": {
+			"must":{"term": {"title": "trek"}},
+			"filter": {"range": {"year":{"gte":2010}}}
+		}
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+Some types of queries:
+
+match_all: returns all documents ...its the default .usully used with a filter ----{"match_all":{}} 
+this is implicit if we do not have any query.
+
+match: searches anylyzed results, such as full text search
+{"match":{"title":"star"}} ----relevent search for search term or terms
+
+multy_match: query multile fields at same time. ie..run the same quey on multiple fields...Eg
+{"multi_match": {"query": "star","fields":["title","synopsis"]}}
+
+query for term star in fields title and synopsis.
+
+bool: works like bool filter , but results are scored by relevance.
+
+Syntax reminder:
+
+queries are wrapped in a query block
+
+Filters are wrapped in filter block
+
+We can combine filters inside query blocks and queries inside filter blocks too
+Example:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"bool": {
+			"must":{"term": {"title": "trek"}},
+			"filter": {"range": {"year":{"gte":2010}}}
+		}
+	}
+}
+
+Some examples of doing complex queries with query and filter blocks:
+
+Simple query example:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"match": {
+			"title": "star"
+		}
+	}
+}'
+
+Another query for querying trek term in title and the year greater than 2010:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+{
+	"query": {
+		"bool": {
+			"must": {"term": {"title": "trek"}},
+			"filter": {"range": {"year": {"gte": "2010"}}}
+		}
+	}
+}'
+ 
+------------------------------------------------------------------------------------------
+
+Phrase search:
+
+Must Find all terms in same order: ---very important
+Eg:
+
+##############################################################################
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+{
+	"query": {
+		"match_phrase": {
+			"title": "star wars"
+		}
+	}
+}'
+
+response below:
+
+{
+  "took" : 212,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.256985,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 1.256985,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+############################################################################
+
+we are searching for the phrase "star wars" in title.
+
+The way this works in the inverted index .....it not only stores the sarch terms which occour in the document but also stores the order in
+which those terms occour---
+
+Inverted Index stores the search terms in documents as well as the order in which those terms occour in the document.----very very important
+
+So elastic search uses this information about the order in which the search term occours to peice togeather the phrase searches.
+
+Slop:
+
+Order matters but we can also search for a phrase with some words between the words of that given phrase being searched.
+
+Eg:
+###################################################################
+curl -XGET 192.0.0.1:9200/movies/movie/_search -d'
+{
+	"query": {
+		"match_phrase": {
+			"title": {"query": "star beyond","slop": 1}
+		}
+	}
+}'
+
+response :
+
+{
+  "took" : 14,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.3164503,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.3164503,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+###################################################################
+
+Notice the difference with the above query!!!!!!!
+
+
+Slop represents how far we are willing to let a term move to satisfy a phrase ----in either direction
+
+Proximity queries:
+
+Use really high slop value if we want any document which contain the words in the given search phrase, but want 
+the documents that have the words closer together scored higher.
+
+remeber this is aquery and - results are sorted by relevance.
+
+
+curl -XGET 127.0.0.1:9200/movies/movie_search?pretty -d'
+{
+	"query": {
+		"match_phrase": {
+			"title": {"query": "star beyond", "slop": 100}
+		}
+	}
+}'
+
+TODO more on slops later ----find what is meant by both ways?????????????????????????? 
+
+-----------------------------------------------------------------------------------
+
+Now the difference between siple match query and the match_phrase query:
+
+match query:
+
+#############################################################################
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+{
+	"query": {
+		"match": {
+			"title": "star trek"
+		}
+	}
+}'
+ 
+response:
+
+{
+  "took" : 17,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 1.256985,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 1.256985,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.25316024,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+Notice in this query the search terms are broken down and any doc which contins the any of the terms will be picked up
+The doc with maximum of search terms will be ranked higher in the results. ----higher relevancy score
+
+#############################################################################	
+
+So if we want only the docs which have the given phrase and in that order eg: "star wars" what we want is a phrase search
+
+#############################################################################
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+{
+"query": {
+        "match_phrase": {
+                "title": "star wars"
+        }
+}
+}'
+
+The above query gives us only docs which have "star wars" phrase in their title
+
+############################################################################
+
+Excercise : searh for Star Wars movie released after 1980 using both URI and request body search
+ 
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?q=+year:>1980+title:star wars&pretty"
+
+curl  -XGET "127.0.0.1:9200/movies/movie/_search?q=%2Byear%3A%3E1980+%2Btitle%3A(star+wars)&pretty"
+
+This above query gives "star wars" and "star trek" since we are not doing a phrase search	
+
+This below query gives the only doc which has "star wars" phrase as we are doing the phrase search (match_phrase)
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+{
+        "query": {
+                "bool":{
+                        "must": {"match_phrase": {"title": "star wars"}},
+                        "filter": {"range": {"year": {"gte":1980}}}
+                }
+        }
+}'
+
+Reaponse: 
+
+{
+  "took" : 8,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.256985,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 1.256985,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      }
+    ]
+  }
+}
+--------------------------------------------------------------------------------------
+
+Pagination:
+
+There are 2 request parms which we can pass either in query string or in JSON body:
+
+from and size from ----from points to current postion of cursor ------starts from 0
+And the size is the number of documents that need to be returned.
+
+examples are follows:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?from=0&size=3&pretty"
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	
+		"from": 0,
+		"size": 2,
+		"query": {"match": {"title": "star"}}
+}'
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+{
+        "from": 0,
+        "size": 3,
+        "query": {"match": {"genre": "Sci-Fi"}}
+}
+'
+
+Beware:
+
+Deep paging will kill performance.
+Like if we ask for documents starting from 100003 and size being 10 .....even though we are asking for 10 docs
+elasticsearch will have to retrive all documents sort them in relevance order and then get the documents from
+specified postion.
+
+every result must be retrived, collected and sorted.
+
+enforce upperbounds on how many results are returned to users----else some malicious users can manipulate
+the bounds and bring the search down.
+
+Examples:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?size=2&pretty"
+
+in the above query from by default is 0.
+
+next 2 results are got by :
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?size=2&from=2&pretty"
+
+from is 0 based and in the first query we got results are of index 0 and 1. in the next query is getting indexes 2 and 3
+
+
+--------------------------------------------------------------------------------------------
+Sorting search results:
+
+Sorting is easy ....but it can complicate matters in some situations:
+
+Sorting can be done on a field by providing the name of the field on which the results are sorted:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?sort=year&pretty"
+
+gives all docs sorted in the ascending order of year
+
+This simple but other cases like:
+
+Sorting on fields that are analyzed:
+
+A string field that is analyzed for full text search cannot be used to sort search results.
+because the field exists in inverted index as individual terms, not as the entire string.
+
+Now if we want to sort on analyzed field we need to drop the existing index and create
+a new mapping for keeping a non analyzed copy of the field
+
+So we will have 2 fields instead of one ----
+one is analyzed and enabled for full text search
+other is non ananlyzed and can be used for sorting purposes:
+
+The point is we need to understand how a field will be used in full text search before 
+creating mappings or else we may have to delete and reindex again.-----painful in some scenarios
+
+The new mapping for movie is as below----we will delete the existing and add new mpping
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+curl -XPUT 127.0.0.1:9200/movies -d'
+{
+	"mappings":{
+		"movie":{
+			"_all": {"enabled":false},
+			"properties": {
+				"title": {
+					"type": "string",
+					"fields": {
+						"raw":{
+							"type": "String",
+							"index": "not_analyzed"
+						}
+					}
+				}
+			}
+		}
+	}
+}'
+
+
+In this mapping the title field has a sub field title.raw
+
+So we now have title which has a default analyzer associated with it ...which will break the text in the field to
+terms and index the same.
+
+Additionally we have a title.raw field which will not be analyzed and can be used for sorting.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+remember this trick ie.. keeping a raw version of a field along with analyzed version will help in lot of other 
+situations.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+Now once we have this mapping in and reindexed all the docs we can sort using the title.raw field as 
+follows:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?sort=title.raw&pretty"
+
+So this is possible only after deleting existing index and reindex the docs 
+it is not possible to  change the mapping of an existing index.
+Just like number of shards ...we will have to think about this before indexing.
+
+In our existing index where we do not have raw field for title if we try srting by title:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?sort=title&pretty"
+
+We get exception:
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "illegal_argument_exception",
+        "reason" : "Fielddata is disabled on text fields by default. Set fielddata=true on [title] in order to load fielddata in memory by uninverting the inverted index. Note that this can however use significant memory. Alternatively use a keyword field instead."
+      }
+    ],
+    "type" : "search_phase_execution_exception",
+    "reason" : "all shards failed",
+    "phase" : "query",
+    "grouped" : true,
+    "failed_shards" : [
+      {
+        "shard" : 0,
+        "index" : "movies",
+        "node" : "QxD2WNLlS-S3DDH0wY9EVA",
+        "reason" : {
+          "type" : "illegal_argument_exception",
+          "reason" : "Fielddata is disabled on text fields by default. Set fielddata=true on [title] in order to load fielddata in memory by uninverting the inverted index. Note that this can however use significant memory. Alternatively use a keyword field instead."
+        }
+      }
+    ]
+  },
+  "status" : 400
+}
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Now deleteing the existing index:
+
+curl -XDELETE 127.0.0.1:9200/movies
+
+curl -XPUT 127.0.0.1:9200/_bull --data-binary @movies.json
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?sort=title.raw&pretty
+
+
+-------------------------------------------------------------------------------------------------------
+
+more on filters:
+
+Complex filter query:
+
+curl -XGET '127.0.0.1:9200/movies/_search' -d '
+{
+	"query": {
+		"bool": {
+			"must": {"match": {"genre": "Sci-Fi"}},
+			"must_not": {"match": {"title": "trek"}},
+			"filter": {"range": {"year":{"gte": 2010,"lt": 2015}}}
+		}
+	}
+}'
+
+This a boolean query which involves 3 different condiitions....more on this later.
+
+
+Search for science fiction movies before 1960 sorted by title
+
+curl -XGET '127.0.0.1:9200/movies/_search?sort=title.raw&pretty' -d '
+{	
+	"query": {
+		"bool": {
+			"must": {"match": {"genre": "Sci-Fi"}},
+			"filter": {"range": {"year":{"lt": 1960}}}
+		}
+	}
+}'
 
 
 
