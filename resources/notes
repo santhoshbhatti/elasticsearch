@@ -5,6 +5,7 @@ https://www.elastic.co/guide/en/elasticsearch/guide/current/index.html
 ####################################################
 
 
+
 The docs to install elastic search:
 
  it details the installation of 
@@ -17,7 +18,10 @@ The docs to install elastic search:
 7. imporing the all shakespeare's works and indexing them
 8. Searching for a phrase such as to be or not to be
 
+Installation:
 
+While installation change the network.host to 0.0.0.0
+This solves the probem of connection reset by peer problem -----very important!!!!!!!!
 --------------------------------------------------------------------------------------------------
 importing a sechema for indexing all shakespeare's works
 
@@ -124,7 +128,7 @@ curl -XPUT 127.0.0.1:9200/movies -d '
 	}
 }  
 '
-
+other fields are title,year and genre
 
 
 In the above example the index we are creating is the movies ---part of the url /movies
@@ -160,9 +164,9 @@ curl -XGET 127.0.0.1:9200/movies/_mapping/movie?pretty
 
 
 Mappings or schema definition :
- Very important while indexing data , how do we difine a document having fields
+ Very important while indexing data , how do we define a document having fields
 
-_all field is introduced by elastic search in all the docs which are indexed by default....this fild combines
+_all field is introduced by elastic search in all the docs which are indexed by default....this field combines
 all the fields togeather...to give us the capability to search accross all fields at once.
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -184,6 +188,9 @@ example:
 	}
 }
 
+in the above property definitionIndex the field but do not apply any analyzer----by default 
+elastic search provides a analyzer depending on the type of the field
+
 What do do we mean by analyzed? Details later---TODO get the details
 Analyzed means ....how field is tokenized for full text search.
 If we have enabled analyzed....elasticsearch indexing will break the field up into terms and create a inverted index of those terms.
@@ -196,7 +203,7 @@ of the documents which are retrived during a search ----search on a different fi
 
 3. field analyzer:
 
-define your tokenizer and token filter ---standard/simple/english etc
+define your tokenizer and token filter ---standard/simple/english/whitespace etc
 
 eg :
 "property": {
@@ -220,7 +227,7 @@ ie if we seach for  & or and we get results
 
 2. Tokenizer 
 	Split strings on whitespace/punctuation/non-letters ...language specific tokenization
-        the choice of tokenizer will determine how a string gets broken up into search terms that get indexed.
+        the choice of tokenizer will determine how a text gets broken up into search terms that get indexed.
 
 3. Token Filtereing:
 	lower casing/synonyms/stemming/stop words/
@@ -234,7 +241,8 @@ Synonyms filter if applied both in indexing and querying we can get results if t
 for big we may get docs with large or huge in it
 
 Stopwords filter if applied will stop some common words which do not convey much meaning like "the, to, or" will not
-be indexed...dont enable stopwords lightly....usually in phrase searches if we had filtered stop words we may not get
+be indexed and niter be searched...dont enable stopwords lightly....usually in phrase searches if we had 
+filtered stop words we may not get
 desired results...like in "to be or not to be" our last example if we had enabled stopword filtering
 we would not get any results on the phrase search as all words in the given phrase are stop words.
 
@@ -504,7 +512,7 @@ Updateing documents:
 all documents in elastic search are immutable......so how to update the documents in elasticsearch
 but there is a workaround for this:
 
-Every doument which is indexed in elasticsearch will have a _version field in it
+Every document which is indexed in elasticsearch will have a _version field in it
 Now we can make a copy of the document which we want to update and make changes to any field in it
 and increment the version field ----note that the unique id asscociated with the document and the version field 
 combined togeather are unique.....this means an elasticsearch index can contain different versions of same document and
@@ -618,7 +626,7 @@ The reponse is as follows:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 Now you can see eventhough we tried insering the new document with same id 
-the elasticsearch updated the existing document ad incremented its _version field to 3....the previous version was 2.
+the elasticsearch updated the existing document and incremented its _version field to 3....the previous version was 2.
 And also we can see that the created field is false : "created" : false ....as it updated the existing doc and not create it.
 
 So this is how updates work....now the previous versions of the document s still exist and they will be cleaned up when 
@@ -687,7 +695,7 @@ Now the above delete command when run the elasticsearch marks the matching docum
 in a saperate sweep through the index in a later phase. this is how deletion works...
 
 in first phase -----documents are marked for delete
-in sechonfd phase ----another process sweeps through the indexes and deletes all documents marked for delete
+in second phase ----another process sweeps through the indexes and deletes all documents marked for delete
 
 ----------------------------------------------------------------------------------------------------------------------
 
@@ -1128,7 +1136,7 @@ curl -XPOST 127.0.0.1:9200/movies/movie/109559/_update?retry_on_conflict=5 -d '
         "title":"Bicentennial Man"
 }}'
 
-And also note this is POST request not the put request as we have done before with version param
+*****************And also note this is POST request not the put request as we have done before with version param******************
 
 
 
@@ -1244,9 +1252,8 @@ If the the documents are very less its better to have them all in asingle shard.
 
 
 Aprt from the above anomly we have one more thing to explain ie...even though we searched for "Star Terk" we got docs containing "Star Wars"
----We can say we got all docs containing Star in them....This is how analyzers work ---they try to give us anything that remotely 
-matches our search ----it gives docs in relevance order and some times the elastic search gets it right and some other times as in
-our case it may go worong as well. 
+---We can say we got all docs containing Star in them....This is how matches on analyzed fields work ---they try to give us anything that remotely matches our search ----it gives docs in relevance order and some times the elastic search gets it right and some other 
+times as in our case it may go wrong as well. 
 
 If we are ok with this kind of behaviour then its fine ....if not we need to think about how we structure our queries and
 how we analyse data that we want to index.
@@ -1340,7 +1347,7 @@ Again this Search result needs lot of explaination: Here we queried for the Phra
 but we got all documents having genre "Sci-Fi" how did this happen??????
 
 This is because we have default analyser for the genre field.
-The default has split the genre into individual terms and indexed them.
+The default analyzer has split the genre into individual terms and indexed them.
 So for example here Sci-Fi has been split into phrases "Sci" and "Fi"
 
 So as stated before ...if we want exact match we need to disable analyzers on such fields as below:
@@ -1442,7 +1449,7 @@ curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
 }'
 ############################################################
 
-Now lets search for a nalyzed field like title:
+Now lets search for analyzed field like title:
 
 Below is the query and the result:
 
@@ -1530,7 +1537,7 @@ document, the higher that document’s score.
 
 Datamodelling in elasticsearch
 
-----Denormalize the data ----which is true for Cassandra, mongodb and other nosql stores. Relationsal db's store data in a normalized way.
+----Denormalize the data ----which is true for Cassandra, mongodb and other nosql stores. Relational db's store data in a normalized way.
 
 Elastic search provides facilities for normalizing as well and also can represent parent child relationships.
 In case of normailizing the data we might need to do 2 different queries for getting the complete data.
@@ -1540,7 +1547,7 @@ We can lookup for a rating -----which has Type: Rating:{userid,movieid, rating}
 
 But in a seperate query we have to get the movie title from the type movie:{movieid,title,genre}
 
-the data thatis normalized is not redundent and its easy to change....but it needs two queries to fetch it.
+the data that is normalized is not redundent and its easy to change....but it needs two queries to fetch it.
 So if we normalize we would be doubling the search trafic. And since in most of the websites search performace is what matters
 and the storage is cheap so we need worry about the storge costs as much we worry about a performant website.
 
@@ -1571,8 +1578,90 @@ curl -XPUT 127.0.0.1:9200/series -d'
  }'
 
 downoad series data :
-wget http://media.sundog-soft.com/es/shakespeare.json
+wget http://media.sundog-soft.com/es/series.json
 
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+mapping for the get-together index and index type ----here the event is a child for the group type:
+curl -XPUT 127.0.0.1:9200/get-together -d '
+{
+    "mappings" : {
+      "event" : {
+	"_parent": {
+                       "type": "group"
+         },
+        "properties" : {
+          "attendees" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "date" : {
+            "type" : "date"
+          },
+          "description" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "host" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "location_event" : {
+            "properties" : {
+              "geolocation" : {
+                "type" : "text",
+                "fields" : {
+                  "keyword" : {
+                    "type" : "keyword",
+                    "ignore_above" : 256
+                  }
+                }
+              },
+              "name" : {
+                "type" : "text",
+                "fields" : {
+                  "keyword" : {
+                    "type" : "keyword",
+                    "ignore_above" : 256
+                  }
+                }
+              }
+            }
+          },
+          "reviews" : {
+            "type" : "long"
+          },
+          "title" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          }
+        }
+      }
+    }
+  }'
+
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 import the data : index into elastic search:
 
 curl -XPUT 127.0.0.1:9200/_bulk?pretty --data-binary @series.json
@@ -1854,7 +1943,7 @@ The shorthand technique is dangerous and not be used in prod because of followin
 
 1. The short-hand queries can get pretty cryptic and will be difficult to debug.
 2. Can be security issue if exposed to end users....end users can issue a intensive query that can bring down the cluster.
-3. fragile....one wrong character and the qury will fail.
+3. fragile....one wrong character and the query will fail.
 
 Handy for quick experimentation.
 
@@ -2015,7 +2104,7 @@ curl  -XGET "127.0.0.1:9200/movies/movie/_search?q=%2Byear%3A%3E2010+%2Btitle%3A
 
 As we can see the quey becomes a pain in the ass
 
-in the below i have tried to url encode the query stiong but it does  -----url encodeing in git
+in the below i have tried to url encode the query string but it does  -----url encodeing in curl
 
 curl -G -v -XGET "127.0.0.1:9200/movies/movie/_search" --data-urlencode "q=+year:>2010+title:trek&pretty"
 
@@ -2050,7 +2139,7 @@ Request body queries can have 2 different things in them
 
 
 2. Queries : return data in terms of relevance 
-Queries are used for example when we search for query for a search term "trek" the query will find out the relevance of the term "trek"
+Queries are used for example when we search for a search term like "trek" the query will find out the relevance of the term "trek"
 to that document and order in terms of its relevance.
 
 However if we have a binary yes/no we need a filter...use filters when you can they are faster and cacheable
@@ -2121,13 +2210,15 @@ Some of the types of filters:
 
 term: filter by exact values {"term": {"year":2014}}
 
-terms: match if any exact value in a list match  {terms:{"genre":["Sci-Fi","Drama"]}}
+terms: filter if any exact value in a list match  {terms:{"genre":["Sci-Fi","Drama"]}}
 
 range: Find numbers or dates in a given range (lt,gt,gte,lte) {"range":{"year":{"gte":2010}}}
 
 exists: Find documents where field exists {"exists": {"field":"tags"}}
 
 missing: Find documents where field is missing {"missing": {"field":"tags"}}
+
+exists and missing are filters necessary as document may or may not have certian fields at all------loose schema/loosely binding
 
 bool: Combine filters with boolean logic (must, must_not, should)
 
@@ -2139,7 +2230,7 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 		}
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-
+in the above we have term filter and range filters in action
 
 Some types of queries:
 
@@ -2342,7 +2433,7 @@ TODO more on slops later ----find what is meant by both ways????????????????????
 
 -----------------------------------------------------------------------------------
 
-Now the difference between siple match query and the match_phrase query:
+Now the difference between simple match query and the match_phrase query:
 
 match query:
 
@@ -2431,7 +2522,7 @@ The above query gives us only docs which have "star wars" phrase in their title
 
 ############################################################################
 
-Excercise : searh for Star Wars movie released after 1980 using both URI and request body search
+Excercise : search for Star Wars movie released after 1980 using both URI and request body search
  
 
 curl -XGET "127.0.0.1:9200/movies/movie/_search?q=+year:>1980+title:star wars&pretty"
@@ -2695,12 +2786,727 @@ curl -XGET '127.0.0.1:9200/movies/_search?sort=title.raw&pretty' -d '
 }'
 
 
+---------------------------------------------------------------------------------------
+Fuzzyness: fuzzy matches are about dealing with typos and misspellings by the user
+
+Levenshteins edit distances ----dealing with typos:
+
+1. substitutions of characters interstellar -> intersteller 	types in wrong char by mistake ---here e instead of a
+"intersteller" will still match if we are ready to tolerate the Levenshteins edit distance of 1
+
+2. insertions interstellar -> insterstellar
+
+3. deletion interstellar -> interstelar
+
+all of above have edit distances of 1...so if we have search terms having edit distances equal to 1 
+
+So if we specify edit distances in the query we will be able to still match the documents.
+
+Fuzzy query demo:
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"fuzzy": {
+			"title": {"value": "intrsteller","fuzziness": 2}
+		}
+	}
+}'
+
+Auto: fuzziness
+
+the auto setting for fuzzyness will tolerate
+0  edit distance for 1-2 char strings
+1 for 3-5
+2 for anything else
+
+examples :
+
+what happens when we have a typo in search:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+"query": {
+	"match": {"title": "intersteller"}
+}
+}'
+
+response : no docs returned in response
+
+Now using fuzzy query:
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"fuzzy": {
+			"title": {"value": "intrsteller","fuzziness": 2}
+		}
+	}
+}'
 
 
-################################################################################
+response :
+
+{
+  "took" : 123,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.2798861,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "109487",
+        "_score" : 1.2798861,
+        "_source" : {
+          "id" : "109487",
+          "title" : "Interstellar",
+          "year" : 2014,
+          "genre" : [
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+This above query was able to tolerate a levenshtein edit distance of 1----the fuzziness we specified
+
+----------------------------------------------------------------------------------------------------------
+
+Partial matching:
+
+Prefix queries on strings:
+
+curl -XGEt 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+"query": {
+        "prefix": {"year" : "201"}
+}
+}'
+
+This query would have worked if year was a string field but now its a long---it would match any thing which started with 201
+
+Prefix matches are easy for elasticsearch its pretty quick-----inverted indexes store terms in away that this kind of query is fast.
+
+Wild card queries: works only for string fields
+
+curl -XGEt 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+"query": {
+        "wildcard": {"year" : "1*"}
+}
+}'
+
+This can match any thing which  starts with 1...wildcard (*) can appear anywhere in the search string ...
+Regular expressions are also supported for a field
+
+---------------------------------------------------------------------
+
+N-Grams and search as you type:
+
+Search as you type ----We can achive this few different types:
+
+1. Abusing sloppiness:
+
+curl -XGEt 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"match_phrase_prefix": {
+			"title": {
+				"query": "star trek",
+				"slop": 10
+			}
+		}
+	}
+}
+
+This is easy to do...we dont have to index the data in any particular way to achive this....we only did the query time search-as-you-type
+
+This is an resource intensive operation....we know that prefix matching is a fairly efficient operation in full 
+text search as the properties  inverted indexes can make this operation efficient...but still this can be costly.
+
+But if we want to emply this soultion in large scale like google and the likes we need a index time solution.
+
+This is what we would do:
+
+search-as-you-type ---index-time with N-Grams:
+
+Index time with N-grams: its fairly simple:
+
+the term "star":
+
+Unigram : [s,t,a,r] => single letter set which composes the term
+Bigram : [st,ta,ar]
+Trigram: [sta,tar]
+4-gram: [star]
+
+This is applicable to search-as-you-type -----if you treat the input(search query) as N-Gram you can compare it to the terms you have
+indexed and see what it matches. So what it means is the n-grams are indexed as terms and when a user types like a single letter "s"
+we can match it to unigram [s,t,a,r] and get the doc which matches.
+
+When he types st we can match it with bigram and so and so forth.
+
+What are edge N-grams:
+
+are built only on the begining of each term.
+
+For example if we were building a edge-N-gram for the above we would have Single unigram [s], Single bigram[st], single 
+trigram[sta] and single 4-gram[star]
+
+So we index only edge- N-grams and we will have simle way of matching up a combination of letters against the prefixes that
+ match for a given search term.
+
+The first step in this process is creating a custom analyzer:
+
+create an autocomplete analyzer:
+#######################################################################################
+curl -XPUT 127.0.0.1:9200/movies?pretty -d'
+{
+	"settings": {
+		"analysis": {
+			"filter": {
+				"autocomplete_filter": {
+					"type": "edge_ngram",
+					"min_gram": 1,
+					"max_gram": 20
+				}
+			},
+			"analyzer": {
+				"autocomplete": {
+					"type": "custom",
+					"tokenizer": "standard",
+					"filter": ["lowercase", "autocomplete_filter"]
+				}
+			}
+		}
+	}
+}'
+
+#######################################################################################
+
+The description of filter and analyzer:
+"filter": {
+				"autocomplete_filter": {
+					"type": "edge_ngram",
+					"min_gram": 1,
+					"max_gram": 20
+				}
+}
+
+We are declareing the filter of type edge_ngram and we can support upto words upto 20 letters long in our search string
+
+And the analyzer we have standard tokenizer and also added our autocomplete_filter to the list of filters it uses for
+tokenizing strings and create search terms before indexing.
+
+Now we need to create amapping with our new analyzer for the title field as follows:
+
+curl -XPUT 127.0.0.1:9200/movies?pretty -d '
+{
+	"mappings": {
+		"movie": {
+			"_all": {"enabled":false},
+			"properties": {
+				"title": {
+					"type": "string",
+					"analyzer":"autocomplete"
+				}
+			}
+		}
+	}
+}'
+
+This mapping tells title will be broken down by the autocomplete_filter into edge ngrams terms ranging from 1 to 20 and indexed as 
+terms in inverted index.
+
+Now on the query side:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d'
+{
+	"query": {
+		"match": {
+			"title": {
+				"query": "sta",
+				"analyzer": "standard"
+			}
+		}
+	}
+}'
+
+Note This imp***
+
+we are using a different analyzer in the query ---standard. We dont want to split up the query
+String into n-grams it should be as it is . 
+if we had used autocomplete_analyzer on query side it would have split into s, st, sta and evetything 
+starting from the above would have matched 
+
+So the autocomplete_analyzer is only on the indexing side and a
+different analyzer is on the query side i.e.. standard.----one of the examles where we have different analyzer
+on search and index sides----cool!!!!!!
+
+***************************************************************
+Note: very imp ----the field that we are searching on ---the analyzer specified while indexing that field
+will be the analyzer which will be applied to the query string as well by default. 
+***************************************************************
+
+Need to try out this example -----TODO
+
+getting this analyzer into the elasticsearch:
+
+curl -XPUT 127.0.0.1:9200/movies?pretty --data-binary @autocomplete_analyzer.json
+
+testing the analyzer -----Amazing:
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+curl -XGET '127.0.0.1:9200/movies/_analyze?analyzer=autocomplete&pretty' -d 'Sta' 
+{
+  "tokens" : [
+    {
+      "token" : "s",
+      "start_offset" : 0,
+      "end_offset" : 3,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "st",
+      "start_offset" : 0,
+      "end_offset" : 3,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "sta",
+      "start_offset" : 0,
+      "end_offset" : 3,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    }
+  ]
+}
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Here 'Sta' is broken down into edge n-grams by our autocomplete analyzer
+----------------------------------------------------------------------------
+
+Completion suggesters: one more strategy
+We can upload a list of all possible completions ahead of time using completion suggesters
+
+curl -XPUT '127.0.0.1:9200/movies/_mapping/movie?pretty' --data-binary @movies_mapping.json
+
+reindex data:
+
+query is as following:
+
+curl -XGET 127.0.0.1:9200/movies/movie/_search?pretty -d '
+ {
+       "query": {
+               "match": {
+                       "title": {"query": "sta","analyzer": "standard"}
+               }
+       }
+ }'
+{
+  "took" : 6,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 1.3229789,
+    "hits" : [
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "122886",
+        "_score" : 1.3229789,
+        "_source" : {
+          "id" : "122886",
+          "title" : "Star Wars: Episode VII - The Force Awakens",
+          "year" : 2015,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Sci-Fi",
+            "IMAX"
+          ]
+        }
+      },
+      {
+        "_index" : "movies",
+        "_type" : "movie",
+        "_id" : "135569",
+        "_score" : 0.40644988,
+        "_source" : {
+          "id" : "135569",
+          "title" : "Star Trek Beyond",
+          "year" : 2016,
+          "genre" : [
+            "Action",
+            "Adventure",
+            "Sci-Fi"
+          ]
+        }
+      }
+    ]
+  }
+}
 
 
 
+
+
+	
+
+
+
+		
+	
+
+
+
+
+ 
+
+
+
+	
+
+
+				
+
+
+
+
+
+######################################### PART 2 #######################################
+This is  Elastic  stack  : Elasticsearch, Logstash,beats framework, Kibana:
+This is not ELK stack  : Elasticsearch, Logstash, Kibana:
+
+Note the difference: more details below
+
+
+
+Logstash:
+
+Running python script:
+
+python3 MoviesToJson.py >moremovies.json 
+
+in the above we are running a python script (MoviesToJson.py) and redirecting the output to the file (moremovies.json)
+> is for direct std output to a file 
+
+Delete the existing index and import the new movies as below:
+
+curl -XDELETE 127.0.0.1:9200/movies
+
+curl -XPUT 127.0.0.1:9200/_bulk --data-binary @moremovies.json
+
+Search for stranger things : URL search:
+
+curl -XGET "127.0.0.1:9200/movies/movie/_search?q=stranger%20things&pretty"
+
+
+This is not the correct way of dealing with elasticsearch from our programs:
+
+We generally use the client libraries provied by elastic search like Java client lib maintained by 
+elastic.co, python, ruby, scala---has many choices, and perl.
+
+ 
+Now indexed the Movies, Taga and Ratings into elastic search......
+TODO write java based script using elastic search client libray to import the movies, taga and the ratings ------currently python
+is being used!!!!!!
+
+
+Logstash:
+
+Logstash is used for moving the data around in servers -----
+
+Logstash sits in between the data and where we want to put it:
+
+like for example:
+
+{files, s3, beats, kafka} --------------> {mongo,elasticsearch,hadoop,aws} : logstash commonly is used to trasfer the contents of a logfile 
+being generated on a server somewhere and elastic search cluster. But logstash can trasfer data from multiple sources and trasfer the same to 
+many different destination as seen below. And also logstash can injest data from many different sources at the same time and egress the data
+to multile destinations at same time------it is flexible.
+
+It does more than plumbing ---- Logstash can do the following to the data as it passes through:
+
+1. Logstash can parse, transform, filter data passsing through it
+2. It can derive structure from unstructured data----apply schema----late binding of schema.
+3. Annonymize personal data or remove it completely----like usernames, emails, passwords etc...
+4. it can do geo-location lookups.
+5. it can scale accross many nodes-----important as the amount of data generated in high volume transction distributed systems can be huge.
+6. guarantees atleast once delivary.
+7. it can absorb throughput from load spikes.
+
+There huge amounts of input source events that can be passed over to logstash and processed like kafka, file system, cloud watch,
+couch db, elastic search, windows even logs , github, google pub-sub, etc.
+
+Similarly it has may different destinations where the data can be sent to.
+
+Typical usgge of logstash is ----Publishing weblogs to elasticsearch cluster for visualizing later we can do the following:
+
+1. install a lightweight client called file beat on individual webserver hosts.
+
+2. file beat will send data to logstash cluster ----which will buffer this data and do filter, transformation, geo lookups and other stuff.
+
+3. The logstash then sends the trnsformed , filtered data to elasticsearch fro indexing.
+
+Previously logstash was diretly installed in web server hosts and it directly listened to logs and then do all the transformation , filtering
+and other stuff there it self and egrss data to elasticsearch. but this not sucha resilent pattern.........  
+
+The use of beat stack to listen to individual weblogs and then trasferrring data to log stack is modern way of doing it.....this is elastic stack. The old stack where we did not use beats framework is ELK stack.
+
+##########################################################################
+
+Installing and configureing Logstash------First start with ELK stack and then come back to
+Elastic stack with beats framework-----later
+
+
+Configureing the logstash:
+
+logstash.conf: /etc/logstash/conf.d/logstash.conf ------this file has the configuration:
+
+It has a block for input, filter and output:
+
+Sample logstash.conf file below:
+
+input{
+	file{
+		path=>"/home/fkane/access_log"
+		start_position => "beginning"
+		ignore_older => 0
+	}
+}
+filter{
+	grok{
+		match => {"message" => "%{COMBINEDAPACHELOG}" }
+	}
+	date{
+		match => ["timestamp","dd/MMM/yyyy:HH:mm:ss Z"]
+	}
+}
+output{
+	elasticsearch{
+		hosts => ["localhost:9200"]
+	}
+	stdout{
+		codec => rubydebug
+	}
+}
+
+The above configuration is self explainatory ----it has 3 sections input, filter and output
+
+Input tells it that the logs to be obtained from a file named access_log and , the los need to be fetched from the begining.
+Here we are also telling that the logstash should not consider the age of the file.....it should accept the old files as well.
+We are also telling that the logs should be chunked from the beginning----in prod we may not do this we might simple 
+get the tail of the logs ----we may not start logstash to fetch logs from the beginning---we will stream the logs as and when a 
+new log entry appears.
+
+We may also not need ignore_older flag in prod ...as we may not need old log files to be processed by logstash.
+
+
+
+Filter section has 2 filters----grok filter is telling that the	logs are are apache logs and each logentry template is that
+of a apache log.
+
+further we are telling that add the time stamp entry for each log entry----in the given format.
+
+Output section tells that the log entries should be egressed to elastic server runnong on localhost:9200 and also th the std output
+
+
+Installing logstash:
+
+sudo apt-get update && sudo apt-get install logstash
+
+We are going to take a apache log file and the logstash is going to do the etl on it and send it to elasticsearch cluster as defined in the 
+above logstash.conf file
+
+
+starting logstash: all this is done on the server where we installed logstash-----in this setup losgstash is on VM
+
+change dir to /usr/share/logstash ----
+
+run the below:
+
+$$$$$$$$$$$$$$$$$$$$$
+
+bin/logstash -f /etc/logstash/conf.d/logstash.conf
+$$$$$$$$$$$$$$$$$$$$$
+
+Now if we note in the console we see that the logstash extracts the different fields in the apache log and constructs
+the elasticsearch docs from those fields of the current log entry and sends to elasticsearch....it also
+prints the docs to stdout.
+
+now lets see what indices exist on elasticsearch cluster: command as below to explore the indexes in elasticsearch:
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+curl -XGET 127.0.0.1:9200/_cat/indices?v
+
+Output as below:
+
+health status index               uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+yellow open   shakespeare         aitiYMJVQxWAJgpqF2yYZA   5   1     111396            0     28.9mb         28.9mb
+yellow open   series              le3Z5QlzROayLfZzmjnVhA   5   1          8            0     12.8kb         12.8kb
+yellow open   logstash-2017.05.02 QRgRbrVwTLKmexntE_CBJw   5   1      16278            0     11.1mb         11.1mb
+yellow open   logstash-2017.05.04 xTT7y5rfTECPMoE2i_AdrQ   5   1      16762            0     11.2mb         11.2mb
+yellow open   movies              LvxJWkXIQ3eurXzsbNU2TA   5   1       9125            0      1.7mb          1.7mb
+yellow open   ratings             gqqbQVvBR3SSgAp9hLL9XA   5   1     100004            0     14.9mb         14.9mb
+yellow open   tags                QDSdE9HHTey1GJ_K1C-Q1w   5   1       1296            0    437.7kb        437.7kb
+green  open   diary               cGMFOzhyQwecZr-Bfqjv5A   3   0          0            0       573b           573b
+yellow open   logstash-2017.05.05 Fn773QszSLiboT_edrDBKQ   5   1      18646            0       12mb           12mb
+yellow open   logstash-2017.05.03 ZWJ7GCsbTkOVOym-LfNj1A   5   1      21172            0     11.2mb         11.2mb
+yellow open   logstash-2017.05.01 e9J5szsHSP2yYveV4OWraA   5   1      15948            0       11mb           11mb
+yellow open   logstash-2017.04.30 8_1h4VvkThGE17UQ_df1Tw   5   1      14166            0      7.8mb          7.8mb
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+So if we see the above output we will notice we have new indices prefixed with logstash and the dates:
+
+These new indices were created by logstash from the apache_log which it processed. The log entries are grouped in individual
+indexes according to the dates on which the corresponding log entries were created.
+
+This way of indexing ie..according to the date when the log entry was appended helps us in deleting the older indexes
+and keeping only the once which are new. this will keep us from overloading the cluster.
+
+Now searching one logstash index as follows:
+####################################################################################################
+curl -XGET 127.0.0.1:9200/logstash-2017.05.02/_search?pretty
+{
+  "took" : 12,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 16278,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "logstash-2017.05.02",
+        "_type" : "logs",
+        "_id" : "AWDWFJyTBLZHkAnfOFrp",
+        "_score" : 1.0,
+        "_source" : {
+          "request" : "/2013/05/new-hosek-wilkie-sky-model-in-silverlining-2-8/",
+          "agent" : "\"Mozilla/5.0 (compatible; AhrefsBot/5.2; +http://ahrefs.com/robot/)\"",
+          "auth" : "-",
+          "ident" : "-",
+          "verb" : "GET",
+          "message" : "217.182.132.155 - - [02/May/2017:00:02:49 +0000] \"GET /2013/05/new-hosek-wilkie-sky-model-in-silverlining-2-8/ HTTP/1.1\" 200 15406 \"-\" \"Mozilla/5.0 (compatible; AhrefsBot/5.2; +http://ahrefs.com/robot/)\"",
+          "path" : "/home/santhosh/access_log",
+          "referrer" : "\"-\"",
+          "@timestamp" : "2017-05-02T00:02:49.000Z",
+          "response" : "200",
+          "bytes" : "15406",
+          "clientip" : "217.182.132.155",
+          "@version" : "1",
+          "host" : "ubuntu",
+          "httpversion" : "1.1",
+          "timestamp" : "02/May/2017:00:02:49 +0000"
+        }
+      },
+
+.......
+}
+
+as we can see logstash has extracted various fields from log entries, constructed the documents(structured the log entry)
+nd posted to elasticsearch for indexing.
+
+Now trere are may questions as follows: TODO answer each of them and add more questions below
+
+1. How do we parse the application logs like a impression logs in adserver?
+
+2. what if the logs have may different formats like impression, clicks, conversion or a DSP logs
+the question is how we can we conditionally parse different log entries having different format ie..different fields etc?
+
+3. ??????????????????????
+
+####################################################################################################	
+
+Where to search
+
+Where to search
+You can tell Elasticsearch to look in a specific type of a specific index, as in listing 2.2,
+but you can also search in multiple types in the same index, in multiple indices, or in
+all indices.
+To search in multiple types, use a comma-separated list. For example, to search in
+both group and event types, run a command like this:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ curl "localhost:9200/get-together/group,event/_search\
+?q=elasticsearch&pretty"
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+You can also search in all types of an index by sending your request to the _search
+endpoint of the index’s URL :
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% curl 'localhost:9200/get-together/_search?q=sample&pretty'
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Similar to types, to search in multiple indices, separate them with a comma:
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% curl "localhost:9200/get-together,other-index/_search\
+?q=elasticsearch&pretty"
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+This particular request will fail unless you created other-index in advance. To ignore
+such problems, you can add the ignore_unavailable flag in the same way you add
+the pretty flag. To search in all indices, omit the index name altogether:
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% curl 'localhost:9200/_search?q=elasticsearch&pretty'
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+_all as the index name. This comes in handy when you need to search in a
+TIP
+single type across all indices as in this example: http://localhost:9200/_all/
+event/_search.
+This flexibility regarding where to search allows you to organize data in multiple indices
+and types, depending on what makes sense for your use case.
+
+this is very important. these scenarios are handy when we want to scale out.
+As we know number of shards are fixed during index creation and we will not be able to 
+change it later. So if we want to scale beyond the confines of our shards we will have to create a new index and put 
+the documents in new index. So while searching we can use above techniques to search for a type in multiple indexes.
+
+
+
+###################################################################################################3	
+
+tcp dump on a given port on the server ------this is the node which receives the request:
+
+sudo tcpdump -vv port 9200 and '(tcp-syn|tcp-ack)!=0'
+
+in the above the we are running the command on serer and dumping the request received on the port 9200
+###################################################################################################
+
+ 
 
 
 
