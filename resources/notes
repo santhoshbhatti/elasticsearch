@@ -83,7 +83,7 @@ curl -XPOST '127.0.0.1:9200/shakespeare/_bulk' --data-binary @shakespeare.json
 
 
 Summary imporing a new schema in elastic search is a PUT request and indexing ie..imporing the
-documents to be indexed to elasticsearch is a PUT request  
+documents to be indexed to elasticsearch is a POST request  
 
 Searching the indexed data is as follows:
 
@@ -99,7 +99,7 @@ curl -XGET '127.0.0.1:9200/shakespeare/_search?pretty' -d '
 }
 '
 
-searching is a get request
+searching is a get request----get request with a body*
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 ------------------------------------------------------------------------------------------------------
@@ -188,7 +188,7 @@ example:
 	}
 }
 
-in the above property definitionIndex the field but do not apply any analyzer----by default 
+in the above property definition Index the field but do not apply any analyzer----by default 
 elastic search provides a analyzer depending on the type of the field
 
 What do do we mean by analyzed? Details later---TODO get the details
@@ -223,7 +223,7 @@ three things analyzers can do:  These are things analyzers can do
 1. Caharacter filters
 	remove HTML encoding , convert & to and etc
 The idea is if we apply same analyzer to the data being indexed and search query we can get rid of such descrepancies. 
-ie if we seach for  & or and we get results
+ie if we search for  & or and we get results
 
 2. Tokenizer 
 	Split strings on whitespace/punctuation/non-letters ...language specific tokenization
@@ -474,7 +474,7 @@ Response below:
 
 #####################################################################################
 
-As we can see from the above response we ere able to import movies from the movies.json
+As we can see from the above response we are able to import movies from the movies.json
 
 In the reponse we can see that 4 movies were imported/indexed successfully and the below document failed to be indexed
 
@@ -1376,7 +1376,29 @@ curl -XPUT 127.0.0.1:9200/movies -d'
 			}		
 		}
 	}
-}'	
+}'
+
+========================================================================================
+The mapping types have changed in elasticsearch 6.0
+the string type is deprecated and instead we have a type called text.
+and instead of qualifying the "index": "not_analyzed" we now have a type called keyword as below:
+
+curl -XPUT 127.0.0.1:9200/movies -H "content-type: application/json" -d'
+{
+        "mappings": {
+                "movie": {
+                        "_all": {"enabled": false},
+                        "properties": {
+                                "id": {"type": "integer"},
+                                "year": {"type": "date"},
+                                "genre": {"type": "keyword"},
+                                "title": {"type": "text","analyzer": "english"}
+                        }
+                }
+        }
+}'
+
+=========================================================================================	
 
 Response below:
 
