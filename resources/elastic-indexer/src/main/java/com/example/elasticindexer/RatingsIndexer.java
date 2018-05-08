@@ -6,11 +6,20 @@ import java.io.Reader;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
-
+import org.apache.http.Header;
+import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+@Service
 public class RatingsIndexer {
 
+	@Autowired
+	RestHighLevelClient client;
 	public String parseRatingCsv() {
 		String json = null;
+		
 		try (Reader in = new FileReader("/home/santoshb/Documents/elasticsearch/movielens_dataset/ratings.csv");) {
 			Iterable<CSVRecord> records = CSVFormat.EXCEL.parse(in);
 			//userId,movieId,rating,timestamp
@@ -22,6 +31,11 @@ public class RatingsIndexer {
 				
 				
 			}
+			Header headers=null;
+			BulkRequest bulkRequest=new BulkRequest();
+			//DocWriteRequest request=new Do;
+			bulkRequest.add(request);
+			client.bulk(bulkRequest, headers);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
